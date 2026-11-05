@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { ThemeToggle } from "./theme-toggle";
+import { useFavorites } from "@/hooks/use-favorites";
 import {
   Home,
   Search,
@@ -19,7 +20,7 @@ import { cn } from "@/lib/utils";
 const NAV_LINKS = [
   { href: "/", label: "الرئيسية", icon: Home },
   { href: "/search", label: "البحث", icon: Search },
-  { href: "/favorites", label: "المفضلة", icon: Bookmark },
+  { href: "/favorites", label: "المفضلة", icon: Bookmark, isFav: true },
   { href: "/about", label: "من نحن", icon: Info },
   { href: "/contact", label: "تواصل معنا", icon: Mail },
 ];
@@ -27,6 +28,9 @@ const NAV_LINKS = [
 export function Header() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { favoriteIds, mounted } = useFavorites();
+
+  const favCount = mounted ? favoriteIds.length : 0;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border-subtle bg-site/90 backdrop-blur-md">
@@ -72,13 +76,18 @@ export function Header() {
                   >
                     <Icon className="w-4 h-4 opacity-75" />
                     <span>{item.label}</span>
+                    {item.isFav && favCount > 0 && (
+                      <span className="w-4 h-4 rounded-full bg-accent text-site text-[10px] font-bold flex items-center justify-center">
+                        {favCount}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
             </nav>
           </div>
 
-          {/* Left Actions (RTL: appears on the left side of header) */}
+          {/* Left Actions */}
           <div className="flex items-center gap-2">
             <ThemeToggle />
 
@@ -100,7 +109,7 @@ export function Header() {
         </div>
       </div>
 
-      {/* Mobile Drawer/Dropdown */}
+      {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="md:hidden border-b border-border-subtle bg-site px-4 pt-2 pb-4 space-y-1">
           {NAV_LINKS.map((item) => {
@@ -115,14 +124,21 @@ export function Header() {
                 href={item.href}
                 onClick={() => setMobileMenuOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-base font-medium transition-colors",
+                  "flex items-center justify-between px-3.5 py-2.5 rounded-lg text-base font-medium transition-colors",
                   isActive
                     ? "bg-card text-primary border border-border-subtle font-semibold"
                     : "text-secondary hover:text-primary hover:bg-hover"
                 )}
               >
-                <Icon className="w-5 h-5 opacity-80" />
-                <span>{item.label}</span>
+                <div className="flex items-center gap-3">
+                  <Icon className="w-5 h-5 opacity-80" />
+                  <span>{item.label}</span>
+                </div>
+                {item.isFav && favCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-accent/20 text-accent text-xs font-bold">
+                    {favCount}
+                  </span>
+                )}
               </Link>
             );
           })}

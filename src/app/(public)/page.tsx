@@ -1,6 +1,6 @@
 import { PublicShell } from "@/components/layout/public-shell";
 import { AdhkarListView } from "@/components/adhkar/adhkar-list-view";
-import { SAMPLE_MORNING_ADHKAR } from "@/lib/sample-data";
+import { getAdhkarByCategory } from "@/lib/adhkar/service";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -12,14 +12,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const morningAdhkar = await getAdhkarByCategory("morning");
+
   return (
     <PublicShell>
       <AdhkarListView
         title="أذكــار الصبـاح"
         subtitle="«أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ» — قراءة وتلاوة الأذكار المأثورة عن النبي ﷺ في أول النهار لحفظ النفس والبركة."
         category="morning"
-        adhkar={SAMPLE_MORNING_ADHKAR}
+        adhkar={morningAdhkar}
       />
     </PublicShell>
   );

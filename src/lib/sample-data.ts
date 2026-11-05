@@ -145,3 +145,40 @@ export const SAMPLE_EVENING_ADHKAR: Dhikr[] = [
     status: "published",
   },
 ];
+
+export const SAMPLE_SLEEP_ADHKAR: Dhikr[] = [
+  {
+    id: "s-1",
+    category: "sleep",
+    order_index: 1,
+    title: "باسمك ربي وضعت جنبي",
+    text: "بِاسْمِكَ رَبِّي وَضَعْتُ جَنْبِي، وَبِكَ أَرْفَعُهُ، فَإِنْ أَمْسَكْتَ نَفْسِي فَارْحَمْهَا، وَإِنْ أَرْسَلْتَهَا فَاحْفَظْهَا بِمَا تَحْفَظُ بِهِ عِبَادَكَ الصَّالِحِينَ.",
+    repeat_count: 1,
+    source: "صحيح البخاري ومسلم",
+    reference: "البخاري: 6320، مسلم: 2714",
+    grade: "متفق عليه",
+    virtue: "من سنن النوم العظيمة لتفويض الأمر إلى الله عز وجل واستيداعه النفس.",
+    is_quranic: false,
+    status: "published",
+  },
+  {
+    id: "s-2",
+    category: "sleep",
+    order_index: 2,
+    title: "التسبيح والتحميد والتكبير قبل النوم",
+    text: "سُبْحَانَ اللَّهِ (٣٣)، وَالْحَمْدُ لِلَّهِ (٣٣)، وَاللَّهُ أَكْبَرُ (٣٤).",
+    repeat_count: 1,
+    source: "صحيح البخاري ومسلم",
+    reference: "البخاري: 3705، مسلم: 2727",
+    grade: "متفق عليه",
+    virtue: "وصية النبي ﷺ لعلي وفاطمة رضي الله عنهما، وهي خير من خادم وتمنح القوة والنشاط.",
+    is_quranic: false,
+    status: "published",
+  },
+];
+
+export const ALL_SAMPLE_ADHKAR: Dhikr[] = [
+  ...SAMPLE_MORNING_ADHKAR,
+  ...SAMPLE_EVENING_ADHKAR,
+  ...SAMPLE_SLEEP_ADHKAR,
+];

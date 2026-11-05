@@ -2,22 +2,59 @@
 
 import { useState, useMemo } from "react";
 import { PublicShell } from "@/components/layout/public-shell";
-import { SAMPLE_MORNING_ADHKAR, SAMPLE_EVENING_ADHKAR } from "@/lib/sample-data";
+import {
+  SAMPLE_MORNING_ADHKAR,
+  SAMPLE_EVENING_ADHKAR,
+  SAMPLE_SLEEP_ADHKAR,
+} from "@/lib/sample-data";
 import { SURAH_LIST } from "@/lib/quran-surahs";
 import { normalizeArabicText } from "@/lib/utils";
-import { Search, X, BookOpen, Sun, Moon, ArrowLeft } from "lucide-react";
+import {
+  Search,
+  X,
+  BookOpen,
+  Sun,
+  Moon,
+  Bed,
+  HeartHandshake,
+  ArrowLeft,
+  Filter,
+} from "lucide-react";
 import Link from "next/link";
 
 interface SearchResultItem {
   id: string;
-  type: "أذكار الصباح" | "أذكار المساء" | "القرآن الكريم";
+  type: "أذكار الصباح" | "أذكار المساء" | "أذكار النوم" | "الأدعية" | "القرآن الكريم";
+  categoryKey: "morning" | "evening" | "sleep" | "duas" | "quran";
   title: string;
   text: string;
   href: string;
 }
 
+const SAMPLE_DUAS_LIST = [
+  {
+    id: "dua-1",
+    title: "دعاء جامع لخير الدنيا والآخرة",
+    text: "رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ",
+    category: "أدعية جامعة",
+  },
+  {
+    id: "dua-2",
+    title: "دعاء ذي النون في بطن الحوت",
+    text: "لَا إِلَٰهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ",
+    category: "أدعية الكرب والهم",
+  },
+  {
+    id: "dua-3",
+    title: "الدعاء للوالدين بالرحمة",
+    text: "رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا",
+    category: "أدعية الوالدين",
+  },
+];
+
 export default function SearchPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilter, setActiveFilter] = useState<string>("all");
 
   const results: SearchResultItem[] = useMemo(() => {
     const trimmed = searchTerm.trim();
@@ -35,6 +72,7 @@ export default function SearchPage() {
         list.push({
           id: item.id,
           type: "أذكار الصباح",
+          categoryKey: "morning",
           title: item.title || "ذكر من أذكار الصباح",
           text: item.text,
           href: `/#dhikr-${item.id}`,
@@ -51,9 +89,45 @@ export default function SearchPage() {
         list.push({
           id: item.id,
           type: "أذكار المساء",
+          categoryKey: "evening",
           title: item.title || "ذكر من أذكار المساء",
           text: item.text,
           href: `/adhkar/evening#dhikr-${item.id}`,
+        });
+      }
+    });
+
+    // Search sleep adhkar
+    SAMPLE_SLEEP_ADHKAR.forEach((item) => {
+      const matchText =
+        normalizeArabicText(item.text).includes(normalizedQuery) ||
+        (item.title && normalizeArabicText(item.title).includes(normalizedQuery));
+      if (matchText) {
+        list.push({
+          id: item.id,
+          type: "أذكار النوم",
+          categoryKey: "sleep",
+          title: item.title || "ذكر من أذكار النوم",
+          text: item.text,
+          href: `/adhkar/sleep#dhikr-${item.id}`,
+        });
+      }
+    });
+
+    // Search Duas
+    SAMPLE_DUAS_LIST.forEach((item) => {
+      const matchText =
+        normalizeArabicText(item.text).includes(normalizedQuery) ||
+        normalizeArabicText(item.title).includes(normalizedQuery) ||
+        normalizeArabicText(item.category).includes(normalizedQuery);
+      if (matchText) {
+        list.push({
+          id: item.id,
+          type: "الأدعية",
+          categoryKey: "duas",
+          title: item.title,
+          text: item.text,
+          href: `/duas#${item.id}`,
         });
       }
     });
@@ -62,11 +136,13 @@ export default function SearchPage() {
     SURAH_LIST.forEach((surah) => {
       const match =
         normalizeArabicText(surah.name).includes(normalizedQuery) ||
-        surah.english_name.toLowerCase().includes(normalizedQuery);
+        surah.english_name.toLowerCase().includes(normalizedQuery) ||
+        surah.number.toString() === normalizedQuery;
       if (match) {
         list.push({
           id: `surah-${surah.number}`,
           type: "القرآن الكريم",
+          categoryKey: "quran",
           title: `سورة ${surah.name}`,
           text: `سورة ${surah.revelation_type === "Meccan" ? "مكية" : "مدنية"}، عدد آياتها ${surah.verses_count} آية، ترتيبها بالمصحف ${surah.number}.`,
           href: `/quran`,
@@ -74,8 +150,18 @@ export default function SearchPage() {
       }
     });
 
-    return list;
-  }, [searchTerm]);
+    if (activeFilter === "all") return list;
+    return list.filter((item) => item.categoryKey === activeFilter);
+  }, [searchTerm, activeFilter]);
+
+  const FILTERS = [
+    { key: "all", label: "الكل" },
+    { key: "morning", label: "أذكار الصباح", icon: Sun },
+    { key: "evening", label: "أذكار المساء", icon: Moon },
+    { key: "sleep", label: "أذكار النوم", icon: Bed },
+    { key: "duas", label: "الأدعية", icon: HeartHandshake },
+    { key: "quran", label: "القرآن", icon: BookOpen },
+  ];
 
   return (
     <PublicShell>
@@ -86,8 +172,8 @@ export default function SearchPage() {
             البحث في المنصـة
           </h1>
           <p className="text-secondary text-sm">
-            ابحث في أذكار الصباح والمساء، الأدعية المأثورة، وسور القرآن الكريم مع
-            تجاهل التشكيل التلقائي.
+            ابحث في أذكار الصباح والمساء وأذكار النوم، الأدعية المأثورة، وسور القرآن
+            الكريم مع تجاهل التشكيل التلقائي.
           </p>
 
           {/* Search Box */}
@@ -97,7 +183,7 @@ export default function SearchPage() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="اكتب كلمة للبحث (مثال: الكرسي، ربي، استغفار، الفاتحة)..."
+              placeholder="اكتب كلمة للبحث (مثال: الكرسي، أستغفر، ربي، الفاتحة)..."
               className="w-full pr-12 pl-10 py-3.5 rounded-xl bg-site border border-border-subtle text-primary placeholder:text-secondary/70 text-base focus:outline-none focus:ring-2 focus:ring-accent/40"
               autoFocus
             />
@@ -111,6 +197,28 @@ export default function SearchPage() {
                 <X className="w-4 h-4" />
               </button>
             )}
+          </div>
+
+          {/* Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-4">
+            {FILTERS.map((f) => {
+              const Icon = f.icon;
+              return (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setActiveFilter(f.key)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors whitespace-nowrap cursor-pointer ${
+                    activeFilter === f.key
+                      ? "bg-site border-accent/40 text-primary font-bold shadow-xs"
+                      : "bg-site/60 border-border-subtle text-secondary hover:text-primary"
+                  }`}
+                >
+                  {Icon && <Icon className="w-3 h-3 text-accent" />}
+                  <span>{f.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -126,7 +234,7 @@ export default function SearchPage() {
               <div className="space-y-3">
                 {results.map((res) => (
                   <Link
-                    key={res.id}
+                    key={`${res.categoryKey}-${res.id}`}
                     href={res.href}
                     className="block p-5 bg-card border border-border-subtle hover:border-accent/50 rounded-2xl transition-all shadow-xs group"
                   >
@@ -154,14 +262,14 @@ export default function SearchPage() {
                   لم يتم العثور على نتائج
                 </p>
                 <p className="text-xs">
-                  جرب البحث بكلمات أبسط أو راجع الحروف دون زوائد.
+                  جرب البحث بكلمات أبسط أو بدون حروف الجر والضمائر.
                 </p>
               </div>
             )}
           </div>
         ) : (
           <div className="p-8 text-center bg-card/60 border border-border-subtle rounded-2xl text-secondary text-xs">
-            اكتب في مربع البحث بالأعلى لعرض النتائج مباشرة.
+            اكتب في مربع البحث بالأعلى لعرض النتائج مباشرة مع فلترة الأقسام.
           </div>
         )}
       </div>

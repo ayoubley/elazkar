@@ -43,11 +43,12 @@ export function AdhkarCard({
   // Audio state
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [audioProgress, setAudioProgress] = useState<number>(0);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [duration, setDuration] = useState<number>(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const storageKey = `adhkar_counter_${dhikr.id}`;
   const isComplete = count >= dhikr.repeat_count;
-  const remaining = Math.max(0, dhikr.repeat_count - count);
 
   // Load saved count from sessionStorage on mount
   useEffect(() => {
@@ -65,6 +66,24 @@ export function AdhkarCard({
     }
   }, [dhikr.id, storageKey]);
 
+  // Global audio coordinator: Stop playing if another audio starts
+  useEffect(() => {
+    const handleOtherAudioPlay = (e: Event) => {
+      const customEvent = e as CustomEvent<{ id: string }>;
+      if (customEvent.detail?.id !== dhikr.id && isPlaying) {
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+        setIsPlaying(false);
+      }
+    };
+
+    window.addEventListener("adhkar_audio_play", handleOtherAudioPlay);
+    return () => {
+      window.removeEventListener("adhkar_audio_play", handleOtherAudioPlay);
+    };
+  }, [dhikr.id, isPlaying]);
+
   // Handle count increment
   const handleIncrement = () => {
     if (isComplete) return;
@@ -72,14 +91,13 @@ export function AdhkarCard({
     const next = count + 1;
     setCount(next);
 
-    // Save to session
     try {
       sessionStorage.setItem(storageKey, next.toString());
     } catch {
       // ignore
     }
 
-    // Gentle haptic feedback if available
+    // Gentle haptic feedback if available on mobile
     if (typeof window !== "undefined" && "vibrate" in navigator) {
       try {
         navigator.vibrate(25);
@@ -103,7 +121,7 @@ export function AdhkarCard({
     onCountChange?.(dhikr.id, 0, false);
   };
 
-  // Copy pure Arabic text only (no UI clutter)
+  // Copy pure Arabic text only
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(dhikr.text);
@@ -127,14 +145,12 @@ export function AdhkarCard({
         await navigator.share(shareData);
         return;
       } catch {
-        // User cancelled or share failed, fallback to copying link
+        // User cancelled or share not supported, fallback to clipboard
       }
     }
 
     try {
-      await navigator.clipboard.writeText(
-        `${shareData.text}\n${shareData.url}`
-      );
+      await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
       setShared(true);
       setTimeout(() => setShared(false), 2000);
     } catch {
@@ -150,11 +166,34 @@ export function AdhkarCard({
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
+      // Dispatch event to pause other playing items
+      window.dispatchEvent(
+        new CustomEvent("adhkar_audio_play", { detail: { id: dhikr.id } })
+      );
+
       audioRef.current.play().catch(() => {
         setIsPlaying(false);
       });
       setIsPlaying(true);
     }
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!audioRef.current || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const width = rect.width;
+    const newProgress = Math.max(0, Math.min(1, clickX / width));
+    const newTime = newProgress * duration;
+    audioRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+    setAudioProgress(newProgress * 100);
+  };
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s < 10 ? "0" : ""}${s}`;
   };
 
   return (
@@ -166,7 +205,7 @@ export function AdhkarCard({
         isComplete && "ring-1 ring-accent/30 bg-card/90"
       )}
     >
-      {/* Top Header Row: Counter Badge, Category, Order */}
+      {/* Top Header Row */}
       <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-border-subtle/50 text-xs">
         <div className="flex items-center gap-2">
           <span className="w-6 h-6 rounded-md bg-site flex items-center justify-center font-semibold text-secondary text-[11px] border border-border-subtle">
@@ -256,53 +295,72 @@ export function AdhkarCard({
           </div>
         )}
 
-        {/* Optional Audio Player */}
-        {dhikr.audio_url && (
-          <div className="mt-4 p-2.5 rounded-xl bg-site/50 border border-border-subtle flex items-center justify-between gap-3">
+        {/* Audio Player Component */}
+        {dhikr.audio_url ? (
+          <div className="mt-4 p-3 rounded-xl bg-site/60 border border-border-subtle flex flex-col sm:flex-row items-center gap-3">
             <audio
               ref={audioRef}
               src={dhikr.audio_url}
-              onEnded={() => setIsPlaying(false)}
+              preload="none"
+              onEnded={() => {
+                setIsPlaying(false);
+                setAudioProgress(0);
+                setCurrentTime(0);
+              }}
+              onLoadedMetadata={() => {
+                if (audioRef.current) {
+                  setDuration(audioRef.current.duration || 0);
+                }
+              }}
               onTimeUpdate={() => {
                 if (audioRef.current) {
-                  const p =
-                    (audioRef.current.currentTime /
-                      audioRef.current.duration) *
-                    100;
-                  setAudioProgress(p || 0);
+                  const curr = audioRef.current.currentTime;
+                  const dur = audioRef.current.duration || 1;
+                  setCurrentTime(curr);
+                  setAudioProgress((curr / dur) * 100);
                 }
               }}
             />
             <button
               type="button"
               onClick={toggleAudio}
-              className="flex items-center gap-2 text-xs font-medium text-primary hover:text-accent transition-colors cursor-pointer"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-border-subtle text-xs font-semibold text-primary hover:text-accent transition-colors cursor-pointer shrink-0"
             >
               {isPlaying ? (
                 <>
-                  <Pause className="w-4 h-4 text-accent" />
-                  <span>إيقاف التلاوة</span>
+                  <Pause className="w-3.5 h-3.5 text-accent" />
+                  <span>إيقاف مؤقت</span>
                 </>
               ) : (
                 <>
-                  <Play className="w-4 h-4 text-accent" />
-                  <span>استماع للتلاوة</span>
+                  <Play className="w-3.5 h-3.5 text-accent" />
+                  <span>استماع</span>
                 </>
               )}
             </button>
-            <div className="flex-1 h-1.5 bg-border-subtle rounded-full overflow-hidden">
+
+            {/* Progress and Timeline */}
+            <div
+              onClick={handleSeek}
+              className="flex-1 w-full h-2 bg-card rounded-full overflow-hidden border border-border-subtle cursor-pointer relative"
+              title="انقر للتنقل في التلاوة"
+            >
               <div
-                className="h-full bg-accent transition-all duration-100"
+                className="h-full bg-accent transition-all duration-75"
                 style={{ width: `${audioProgress}%` }}
               />
             </div>
+
+            <div className="text-[10px] font-mono text-secondary shrink-0">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Footer Interactive Row: Counter & Actions */}
       <div className="px-5 py-3.5 bg-site/40 border-t border-border-subtle flex flex-col sm:flex-row items-center justify-between gap-3">
-        {/* Secondary Action Buttons (Copy, Share, Favorite) */}
+        {/* Secondary Action Buttons */}
         <div className="flex items-center gap-1 w-full sm:w-auto justify-start">
           {/* Copy Button */}
           <button
@@ -379,7 +437,7 @@ export function AdhkarCard({
           )}
         </div>
 
-        {/* Prominent Large Thumb-Friendly Counter Button */}
+        {/* Large Thumb-Friendly Counter Button */}
         <div className="w-full sm:w-auto flex items-center justify-end">
           <button
             type="button"
